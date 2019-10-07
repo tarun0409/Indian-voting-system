@@ -71,8 +71,8 @@ contract('Indian Voting System ::: Test 1',function(accounts){
             var test_case_passed = false;
             try
             {
-                await instance.add_constituencyAdmin(accounts[2],constituency1_hash);
-                await instance.add_constituencyAdmin(accounts[3],constituency2_hash);
+                await instance.add_constituencyAdmin(constituency1_hash, accounts[2]);
+                await instance.add_constituencyAdmin(constituency2_hash, accounts[3]);
                 var ca1 = await instance.get_constituency_admins(constituency1_hash);
                 var ca2 = await instance.get_constituency_admins(constituency2_hash);
                 test_case_passed = (ca1[0] == accounts[2]) && (ca2[0] == accounts[3]);
@@ -90,13 +90,14 @@ contract('Indian Voting System ::: Test 1',function(accounts){
             var test_case_passed = false;
             try
             {
-                await instance.register_votingCentre(votingCentre1, constituency1_hash, {from:accounts[2]});
-                await instance.register_votingCentre(votingCentre2, constituency2_hash, {from:accounts[1]});
-                await instance.register_votingCentre(votingCentre3, constituency1_hash, {from:accounts[2]});
-                await instance.register_votingCentre(votingCentre4, constituency2_hash, {from:accounts[1]});
+                await instance.register_votingCentre(constituency1_hash, votingCentre1, {from:accounts[2]});
+                await instance.register_votingCentre(constituency1_hash, votingCentre2, {from:accounts[2]});
+                await instance.register_votingCentre(constituency2_hash, votingCentre3, {from:accounts[3]});
+                await instance.register_votingCentre(constituency2_hash, votingCentre4, {from:accounts[3]});
                 
-                var registered_hashes = await instance.get_registered_votingCentres_hash();
-                test_case_passed = registered_hashes.includes(votingCentre1_hash) && registered_hashes.includes(votingCentre2_hash) && registered_hashes.includes(votingCentre3_hash) && registered_hashes.includes(votingCentre4_hash);
+                var registered_hashes_1 = await instance.get_registered_votingCentres_hash(constituency1_hash);
+                var registered_hashes_2 = await instance.get_registered_votingCentres_hash(constituency2_hash);
+                test_case_passed = registered_hashes_1.includes(votingCentre1_hash) && registered_hashes_1.includes(votingCentre2_hash) && registered_hashes_2.includes(votingCentre3_hash) && registered_hashes_2.includes(votingCentre4_hash);
             }
             catch(e)
             {
@@ -111,21 +112,21 @@ contract('Indian Voting System ::: Test 1',function(accounts){
             var test_case_passed = false;
             try
             {
-                await instance.register_voter(accounts[0], constituency1_hash,{from:accounts[0]}); //super admin 1
-                await instance.register_voter(accounts[1], constituency1_hash,{from:accounts[1]}); //super admin 2
-                await instance.register_voter(accounts[2], constituency2_hash,{from:accounts[3]}); //const admin 1
-                await instance.register_voter(accounts[3], constituency2_hash,{from:accounts[0]}); //super admin 1
-                await instance.register_voter(accounts[4], constituency1_hash,{from:accounts[0]}); //super admin 1
-                await instance.register_voter(accounts[5], constituency1_hash,{from:accounts[1]}); //super admin 2
-                await instance.register_voter(accounts[6], constituency1_hash,{from:accounts[2]}); //const admin 1
-                await instance.register_voter(accounts[7], constituency2_hash,{from:accounts[0]}); //super admin 1
-                await instance.register_voter(accounts[8], constituency2_hash,{from:accounts[1]}); //super admin 2
-                await instance.register_voter(accounts[9], constituency2_hash,{from:accounts[3]}); //const admin 2
+                await instance.register_voter(constituency1_hash, accounts[0], {from:accounts[0]}); //super admin 1
+                await instance.register_voter(constituency1_hash, accounts[1], {from:accounts[2]}); //super admin 2
+                await instance.register_voter(constituency1_hash, accounts[2] ,{from:accounts[0]}); //const admin 1
+                await instance.register_voter(constituency1_hash, accounts[3], {from:accounts[2]}); //super admin 1
+                await instance.register_voter(constituency1_hash, accounts[4] ,{from:accounts[0]}); //super admin 1
+                await instance.register_voter(constituency2_hash, accounts[5] ,{from:accounts[3]}); //super admin 2
+                await instance.register_voter(constituency2_hash, accounts[6] ,{from:accounts[1]}); //const admin 1
+                await instance.register_voter(constituency2_hash, accounts[7] ,{from:accounts[3]}); //super admin 1
+                await instance.register_voter(constituency2_hash, accounts[8] ,{from:accounts[1]}); //super admin 2
+                await instance.register_voter(constituency2_hash, accounts[9] ,{from:accounts[3]}); //const admin 2
 
                 var reg_voters_1 = await instance.get_registered_voters(constituency1_hash);
                 var reg_voters_2 = await instance.get_registered_voters(constituency2_hash);
                 
-                test_case_passed = reg_voters_1.includes(accounts[0]) && reg_voters_1.includes(accounts[1]) && reg_voters_1.includes(accounts[4]) && reg_voters_1.includes(accounts[5]) && reg_voters_1.includes(accounts[6]) && reg_voters_2.includes(accounts[7]) && reg_voters_2.includes(accounts[8]) && reg_voters_2.includes(accounts[9]) && reg_voters_2.includes(accounts[2]) && reg_voters_2.includes(accounts[3]);
+                test_case_passed = reg_voters_1.includes(accounts[0]) && reg_voters_1.includes(accounts[2]) && reg_voters_1.includes(accounts[3]) && reg_voters_2.includes(accounts[5]) && reg_voters_2.includes(accounts[7]) && reg_voters_2.includes(accounts[9]);
             }
             catch(e)
             {
@@ -140,19 +141,24 @@ contract('Indian Voting System ::: Test 1',function(accounts){
             var test_case_passed = false;
             try
             {
-                await instance.allocate_voter(accounts[4], votingCentre1_hash, {from:accounts[0]});
-                await instance.allocate_voter(accounts[5], votingCentre3_hash, {from:accounts[1]});
-                await instance.allocate_voter(accounts[6], votingCentre1_hash, {from:accounts[2]});
-                await instance.allocate_voter(accounts[7], votingCentre4_hash, {from:accounts[0]});
-                await instance.allocate_voter(accounts[8], votingCentre2_hash, {from:accounts[1]});
-                await instance.allocate_voter(accounts[9], votingCentre4_hash, {from:accounts[3]});
+                await instance.allocate_voter(constituency1_hash, votingCentre1_hash, accounts[0], {from:accounts[0]});
+                await instance.allocate_voter(constituency1_hash, votingCentre1_hash, accounts[1], {from:accounts[2]});
+                await instance.allocate_voter(constituency1_hash, votingCentre2_hash, accounts[2], {from:accounts[0]});
+                await instance.allocate_voter(constituency1_hash, votingCentre2_hash, accounts[3], {from:accounts[2]});
+                await instance.allocate_voter(constituency1_hash, votingCentre2_hash, accounts[4], {from:accounts[2]});
                 
-                var alc_voters_1 = await instance.get_allocated_voters(votingCentre1_hash);
-                var alc_voters_2 = await instance.get_allocated_voters(votingCentre2_hash);
-                var alc_voters_3 = await instance.get_allocated_voters(votingCentre3_hash);
-                var alc_voters_4 = await instance.get_allocated_voters(votingCentre4_hash);
+                await instance.allocate_voter(constituency2_hash, votingCentre3_hash, accounts[5], {from:accounts[1]});
+                await instance.allocate_voter(constituency2_hash, votingCentre3_hash, accounts[6], {from:accounts[3]});
+                await instance.allocate_voter(constituency2_hash, votingCentre4_hash, accounts[7], {from:accounts[1]});
+                await instance.allocate_voter(constituency2_hash, votingCentre4_hash, accounts[8], {from:accounts[3]});
+                await instance.allocate_voter(constituency2_hash, votingCentre4_hash, accounts[9], {from:accounts[1]});
                 
-                test_case_passed = alc_voters_1.includes(accounts[4]) && alc_voters_1.includes(accounts[6]) && alc_voters_2.includes(accounts[8]) && alc_voters_3.includes(accounts[5]) && alc_voters_4.includes(accounts[7]) && alc_voters_4.includes(accounts[9]);
+                var alc_voters_1 = await instance.get_allocated_voters(constituency1_hash, votingCentre1_hash);
+                var alc_voters_2 = await instance.get_allocated_voters(constituency1_hash, votingCentre2_hash);
+                var alc_voters_3 = await instance.get_allocated_voters(constituency2_hash, votingCentre3_hash);
+                var alc_voters_4 = await instance.get_allocated_voters(constituency2_hash, votingCentre4_hash);
+            
+                test_case_passed = alc_voters_1.includes(accounts[0]) && alc_voters_2.includes(accounts[3]) && alc_voters_3.includes(accounts[6]) && alc_voters_4.includes(accounts[9]);
             }
             catch(e)
             {
@@ -167,24 +173,105 @@ contract('Indian Voting System ::: Test 1',function(accounts){
             var test_case_passed = false;
             try
             {
-                await instance.register_candidate(accounts[0], constituency1_hash, {from:accounts[0]});
-                await instance.register_candidate(accounts[3], constituency1_hash, {from:accounts[1]});
-                await instance.register_candidate(accounts[7], constituency1_hash, {from:accounts[2]});
-                await instance.register_candidate(accounts[2], constituency2_hash, {from:accounts[0]});
-                await instance.register_candidate(accounts[4], constituency2_hash, {from:accounts[1]});
-                await instance.register_candidate(accounts[9], constituency2_hash, {from:accounts[3]});
+                await instance.register_candidate(constituency1_hash, accounts[0], {from:accounts[0]});
+                await instance.register_candidate(constituency1_hash, accounts[3], {from:accounts[2]});
+                await instance.register_candidate(constituency1_hash, accounts[6], {from:accounts[0]});
+                await instance.register_candidate(constituency1_hash, accounts[9], {from:accounts[2]});
+                
+                await instance.register_candidate(constituency2_hash, accounts[1], {from:accounts[1]});
+                await instance.register_candidate(constituency2_hash, accounts[5], {from:accounts[3]});
+                await instance.register_candidate(constituency2_hash, accounts[7], {from:accounts[1]});
+                await instance.register_candidate(constituency2_hash, accounts[8], {from:accounts[3]});
 
                 var reg_cands_1 = await instance.get_candidates(constituency1_hash);
                 var reg_cands_2 = await instance.get_candidates(constituency2_hash);
 
-                test_case_passed = reg_cands_1.includes(accounts[0]) && reg_cands_1.includes(accounts[3]) && reg_cands_1.includes(accounts[7]) && reg_cands_2.includes(accounts[2]) && reg_cands_2.includes(accounts[4]) && reg_cands_2.includes(accounts[9]);
-
+                test_case_passed = reg_cands_1.includes(accounts[0]) && reg_cands_1.includes(accounts[9]) && reg_cands_2.includes(accounts[5]) && reg_cands_2.includes(accounts[7]);
             }
             catch(e)
             {
                 assert(false, 'Exception has occurred ::: '+e.message);
             }
             assert(test_case_passed, 'One or more voters not allocated.');
+        });
+    });
+    it("registered voters should be able to vote",function(){
+        return VS.deployed().then(async function(instance)
+        {
+            var test_case_passed = false;
+            try
+            {
+                var d = new Date();
+                d.setHours(d.getHours() - 2);
+                var startDateTime = Math.round(d.getTime()/1000);
+                d.setHours(d.getHours() + 4);
+                var endDateTime = Math.round(d.getTime()/1000);
+                await instance.set_electionDate(constituency1_hash,startDateTime,endDateTime);
+                await instance.vote(constituency1_hash,votingCentre1_hash,accounts[3],{from:accounts[1]});
+                var voted = await instance.get_voterStatus(constituency1_hash, accounts[1]);
+                test_case_passed = voted;
+            }
+            catch(e)
+            {
+                assert(false, 'Exception has occurred ::: '+e.message);
+            }
+            assert(test_case_passed, 'Voter status not changed.');
+        });
+    });
+    it("super admins or constituency admins should be able to count votes",function(){
+        return VS.deployed().then(async function(instance)
+        {
+            var test_case_passed = false;
+            try
+            {
+                var d = new Date();
+                d.setHours(d.getHours() - 2);
+                var startDateTime = Math.round(d.getTime()/1000);
+                d.setHours(d.getHours() + 4);
+                var endDateTime = Math.round(d.getTime()/1000);
+                await instance.set_voteCountDate(constituency1_hash,startDateTime,endDateTime);
+                
+                await instance.vote(constituency1_hash,votingCentre2_hash,accounts[0],{from:accounts[4]});
+                await instance.vote(constituency1_hash,votingCentre1_hash,accounts[3],{from:accounts[0]});
+                await instance.vote(constituency1_hash,votingCentre2_hash,accounts[0],{from:accounts[2]});
+                await instance.vote(constituency1_hash,votingCentre1_hash,accounts[3],{from:accounts[3]});
+
+                var vc_votes = await instance.get_totalVotes_votingCentre(constituency1_hash, votingCentre1_hash);
+                var c_votes = await instance.get_totalVotes_constituency(constituency1_hash);
+                var cand_votes = await instance.get_totalVotes_candidate(constituency1_hash, accounts[3]);
+
+                test_case_passed = (vc_votes == 2) && (c_votes == 5) && (cand_votes == 3);
+                
+            }
+            catch(e)
+            {
+                assert(false, 'Exception has occurred ::: '+e.message);
+            }
+            assert(test_case_passed, 'Vote totalling did not tally.');
+        });
+    });
+    it("super admins or constituency admins should be able to declare constituency winner",function(){
+        return VS.deployed().then(async function(instance)
+        {
+            var test_case_passed = false;
+            try
+            {
+                var d = new Date();
+                d.setHours(d.getHours() - 2);
+                var startDateTime = Math.round(d.getTime()/1000);
+                d.setHours(d.getHours() + 4);
+                var endDateTime = Math.round(d.getTime()/1000);
+                await instance.set_resultDeclareDate(constituency1_hash,startDateTime,endDateTime);
+                await instance.compute_constituency_winner(constituency1_hash);
+                var winners = await instance.get_constituency_winners(constituency1_hash);
+                test_case_passed = winners[0] == accounts[3];
+                
+            }
+            catch(e)
+            {
+                assert(false, 'Exception has occurred ::: '+e.message);
+            }
+            assert(test_case_passed, 'Winner not in the list.');
         });
     });
 });
