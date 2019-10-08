@@ -2,35 +2,28 @@ pragma solidity >=0.4.22 <0.6.0;
 
 contract Voting_System
 {
-    address[] private super_admins;
-    mapping (bytes32 => address[]) private constituencies_to_admins;
-    mapping (address => uint) private vote_count;
-    uint private total_admissible_voters;
-    uint private total_votes_cast;
-    uint private total_constituencies;
-    bytes32[] private registered_constituencies;
-    mapping (bytes32 => address[]) private constituency_to_voters;
-    mapping (bytes32 => address[]) private votingCentre_to_voters;
-    mapping (bytes32 => bytes32[]) private constituency_to_votingCentres;
-    mapping (bytes32 => address[]) private constituency_to_candidates;
-    mapping (bytes32 => uint256[]) private constituency_to_electionDateTime;
-    mapping (bytes32 => uint256[]) private constituency_to_voteCountDateTime;
-    mapping (bytes32 => uint256[]) private constituency_to_resultDeclareCountDateTime;
-    mapping (address => bool) private voter_to_votingStatus;
-    address[] private winning_candidates;
+    address[] private admins;
+    address[] private voters;
+    address[] private candidates;
+    address[] private votedVoters;
+    bytes32[] private voteHashes;
+    uint256 private electionStartDateTime;
+    uint256 private electionEndDateTime;
+    uint256 private voteCountStartDateTime;
+    uint256 private voteCountEndDateTime;
+    uint256 private resultDeclareStartDateTime;
+    uint256 private resultDeclareEndDateTime;
+    mapping (address => uint) private candidateToVoteCount;
 
-    constructor (uint total_consts) public {
-        total_constituencies = total_consts;
-        total_admissible_voters = 0;
-        total_votes_cast = 0;
-        super_admins.push(msg.sender);
+    constructor () public {
+        admins.push(msg.sender);
     }
 
-    function caller_is_superAdmin(address caller) private view returns(bool) {
+    function callerIsAdmin(address caller) private view returns(bool) {
         bool caller_is_super_admin = false;
-        for(uint i = 0; i<super_admins.length; i += 1)
+        for(uint i = 0; i<admins.length; i += 1)
         {
-            if(super_admins[i]==caller)
+            if(admins[i]==caller)
             {
                 caller_is_super_admin = true;
             }
@@ -38,288 +31,196 @@ contract Voting_System
         return caller_is_super_admin;
     }
 
-    function constituency_is_registered(bytes32 constituency) private view returns(bool) {
-        bool cir = false;
-        for(uint i = 0; i<registered_constituencies.length; i += 1)
+    function voterIsRegistered(address voter) private view returns (bool) {
+        bool voterRegistered = false;
+        for(uint i = 0; i<voters.length; i += 1)
         {
-            if(registered_constituencies[i] == constituency)
+            if(voters[i] == voter)
             {
-                cir = true;
+                voterRegistered = true;
             }
         }
-        return cir;
+        return voterRegistered;
     }
 
-    function votingCentre_is_registered(bytes32 constituency, bytes32 voting_centre) private view returns(bool) {
-        bool vir = false;
-        for(uint i = 0; i<constituency_to_votingCentres[constituency].length; i += 1)
+    function candidateIsRegistered(address candidate) private view returns (bool) {
+        bool candidateRegistered = false;
+        for(uint i = 0; i<candidates.length; i += 1)
         {
-            if(constituency_to_votingCentres[constituency][i] == voting_centre)
+            if(candidates[i] == candidate)
             {
-                vir = true;
+                candidateRegistered = true;
             }
         }
-        return vir;
+        return candidateRegistered;
     }
 
-    function all_constituencies_registered() private view returns (bool) {
-        return (registered_constituencies.length == total_constituencies);
+    function isElectionDay() private view returns (bool) {
+        require(electionStartDateTime != 0 && electionEndDateTime != 0, 'Election date not set.');
+        uint256 currentTime = now;
+        return (currentTime >= electionStartDateTime && currentTime <= electionEndDateTime);
     }
 
-    function caller_is_constituencyAdmin(bytes32 constituency, address caller) private view returns (bool) {
-        bool caller_is_cAdmin = false;
-        for(uint i = 0; i<constituencies_to_admins[constituency].length; i += 1)
+    function isVoteCountDay() private view returns (bool) {
+        require(voteCountStartDateTime != 0 && voteCountEndDateTime != 0, 'Vote counting date not set.');
+        uint256 current_time = now;
+        return (current_time >= voteCountStartDateTime && current_time <= voteCountEndDateTime);
+    }
+
+    function isResultDeclarationDay() private view returns (bool) {
+        require(resultDeclareStartDateTime != 0 && resultDeclareEndDateTime != 0, 'Result declaration date not set.');
+        uint256 current_time = now;
+        return (current_time >= resultDeclareStartDateTime && current_time <= resultDeclareEndDateTime);
+    }
+
+    function voterHasVoted(address voter) private view returns (bool) {
+        bool voterVoted = false;
+        for(uint i = 0; i<votedVoters.length; i += 1)
         {
-            if(constituencies_to_admins[constituency][i]==caller)
+            if(votedVoters[i] == voter)
             {
-                caller_is_cAdmin = true;
+                voterVoted = true;
+                break;
             }
         }
-        return caller_is_cAdmin;
+        return voterVoted;
     }
 
-    function voter_is_registered(address voter) private view returns (bool) {
-        bool voter_registered = false;
-        for(uint i = 0; i<registered_constituencies.length; i += 1)
+    function getAdmins() public view returns (address[] memory){
+        require(callerIsAdmin(msg.sender),'Only admins can get list of other admins.');
+        return admins;
+    }
+
+    function addAdmin(address admin) public {
+        require(callerIsAdmin(msg.sender), 'Only admins can add other admins.');
+        admins.push(admin);
+    }
+
+    function registerVoter(address voter) public {
+        require(callerIsAdmin(msg.sender), 'Only admins can register a voter!');
+        voters.push(voter);
+    }
+
+    function getRegisteredVoters() public view returns (address[] memory) {
+        require(callerIsAdmin(msg.sender), 'Only admins can register a voter!');
+        return voters;
+    }
+
+    function registerCandidate(address candidate) public {
+        require(callerIsAdmin(msg.sender), 'Only admins can register a candidate.');
+        require(voterIsRegistered(candidate),'Candidate should be registered as a voter to be registered as candidate!');
+        candidates.push(candidate);
+    }
+
+    function getRegisteredCandidates() public view returns (address[] memory) {
+        require(callerIsAdmin(msg.sender), 'Only admins can register a candidate.');
+        return candidates;
+    }
+
+    function setElectionDate(uint256 startDateTime, uint256 endDateTime) public {
+        require(callerIsAdmin(msg.sender), 'Only admins can set an election date.');
+        electionStartDateTime = startDateTime;
+        electionEndDateTime = endDateTime;
+    }
+
+    function setVoteCountDate(uint256 startDateTime, uint256 endDateTime) public {
+        require(callerIsAdmin(msg.sender), 'Only admins can set vote count date.');
+        voteCountStartDateTime = startDateTime;
+        voteCountEndDateTime = endDateTime;
+    }
+
+    function setResultDeclareDate(uint256 startDateTime, uint256 endDateTime) public {
+        require(callerIsAdmin(msg.sender), 'Only admins can set result declaration date.');
+        resultDeclareStartDateTime = startDateTime;
+        resultDeclareEndDateTime = endDateTime;
+    }
+
+    function vote(bytes32 choiceHash) public {
+        require(voterIsRegistered(msg.sender), 'Voter should be registered to vote.');
+        require(isElectionDay(),'Voting can be done only on set election date.');
+        require(!voterHasVoted(msg.sender), 'Voter has only one vote and it has been cast.');
+        voteHashes.push(choiceHash);
+        votedVoters.push(msg.sender);
+    }
+
+    function getTotalVotesCast() public view returns (uint) {
+        require(callerIsAdmin(msg.sender),'Only admins can see vote choices.');
+        return voteHashes.length;
+
+    }
+
+    function getTotalVotesCandidate(address candidate, bytes32[] memory nonces) public view returns (uint) {
+        require(callerIsAdmin(msg.sender),'Only admins can see vote choices.');
+        require(candidateIsRegistered(candidate),'Candidate should be registered.');
+        require(isVoteCountDay(),'Votes can be counted only on set vote counting day.');
+        uint totalVotes = 0;
+        for(uint i = 0; i<nonces.length; i += 1)
         {
-            for(uint j = 0; j<constituency_to_voters[registered_constituencies[i]].length; j += 1)
+            bytes32 candidateHash = keccak256(abi.encodePacked(candidate, nonces[i]));
+            for(uint j = 0; j<voteHashes.length; j += 1)
             {
-                if(constituency_to_voters[registered_constituencies[i]][j] == voter)
+                if(voteHashes[j] == candidateHash)
                 {
-                    voter_registered = true;
-                    break;
+                    totalVotes += 1;
                 }
             }
         }
-        return voter_registered;
+        return totalVotes;
     }
 
-    function voter_is_registered_inConstituency(bytes32 constituency, address voter) private view returns (bool) {
-        bool voter_registered = false;
-        for(uint j = 0; j<constituency_to_voters[constituency].length; j += 1)
+    function countAllVotes(bytes32[] memory nonces) public {
+        require(callerIsAdmin(msg.sender),'Only admins can see vote choices.');
+        require(isVoteCountDay(),'Votes can be counted only on set vote counting day.');
+        for(uint i = 0; i<nonces.length; i += 1)
         {
-            if(constituency_to_voters[constituency][j] == voter)
+            for(uint j = 0; j<candidates.length; j += 1)
             {
-                voter_registered = true;
-                break;
-            }
-        }
-        return voter_registered;
-    }
-
-    function candidate_is_registered(bytes32 constituency, address candidate) private view returns (bool) {
-        bool candidate_registered = false;
-        for(uint i = 0; i<constituency_to_candidates[constituency].length; i += 1)
-        {
-            if(constituency_to_candidates[constituency][i] == candidate)
-            {
-                candidate_registered = true;
-                break;
-            }
-        }
-        return candidate_registered;
-    }
-
-    function is_election_day(bytes32 constituency) private view returns (bool) {
-        require(constituency_to_electionDateTime[constituency].length == 2, 'Election date not set for constituency.');
-        uint256 current_time = now;
-        bool is_electionDay = (current_time >= constituency_to_electionDateTime[constituency][0] && current_time <= constituency_to_electionDateTime[constituency][1]);
-        return is_electionDay;
-    }
-
-    function is_voteCount_day(bytes32 constituency) private view returns (bool) {
-        require(constituency_to_voteCountDateTime[constituency].length == 2, 'Vote counting date not set for constituency.');
-        uint256 current_time = now;
-        bool is_voteCountDay = (current_time >= constituency_to_voteCountDateTime[constituency][0] && current_time <= constituency_to_voteCountDateTime[constituency][1]);
-        return is_voteCountDay;
-    }
-
-    function is_resultDeclaration_day(bytes32 constituency) private view returns (bool) {
-        require(constituency_to_resultDeclareCountDateTime[constituency].length == 2, 'Result declaration date not set for constituency.');
-        uint256 current_time = now;
-        bool is_resultDeclarationDay = (current_time >= constituency_to_resultDeclareCountDateTime[constituency][0] && current_time <= constituency_to_resultDeclareCountDateTime[constituency][1]);
-        return is_resultDeclarationDay;
-    }
-
-    function get_superAdmins() public view returns (address[] memory){
-        require(caller_is_superAdmin(msg.sender),'Only super admins can get list of other super admins.');
-        return super_admins;
-    }
-
-    function add_superAdmin(address admin) public {
-        require(caller_is_superAdmin(msg.sender), 'Only super admins can add other super admins!');
-        super_admins.push(admin);
-    }
-
-    function register_constituency(string memory const_name) public {
-        require(!all_constituencies_registered(),'All constituencies registered');
-        require(caller_is_superAdmin(msg.sender),'Only super admins can register constituency!');
-        bytes32 const_hash = keccak256(abi.encodePacked(const_name));
-        registered_constituencies.push(const_hash);
-    }
-
-    function get_registered_constituencies_hash() public view returns(bytes32[] memory) {
-        return registered_constituencies;
-    }
-
-    function add_constituencyAdmin(bytes32 constituency, address cAdmin) public {
-        require(constituency_is_registered(constituency),'Constituency not registered!');
-        require(caller_is_superAdmin(msg.sender),'Only super admins can add constituency admins!');
-        constituencies_to_admins[constituency].push(cAdmin);
-    }
-
-    function get_constituency_admins(bytes32 constituency) public view returns (address[] memory) {
-        require(caller_is_superAdmin(msg.sender),'Only super admins can get list of other super admins.');
-        require(constituency_is_registered(constituency),'Constituency not registered!');
-        return constituencies_to_admins[constituency];
-    }
-
-    function register_votingCentre(bytes32 constituency, string memory vc_name) public {
-        require(constituency_is_registered(constituency),'Constituency not registered!');
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can register voting centre!');
-        bytes32 vc_hash = keccak256(abi.encodePacked(vc_name));
-        constituency_to_votingCentres[constituency].push(vc_hash);
-    }
-
-    function get_registered_votingCentres_hash(bytes32 constituency) public view returns(bytes32[] memory) {
-        return constituency_to_votingCentres[constituency];
-    }
-
-    function register_voter(bytes32 constituency, address voter) public {
-        require(constituency_is_registered(constituency),'Constituency not registered!');
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can register a voter!');
-        constituency_to_voters[constituency].push(voter);
-        voter_to_votingStatus[voter] = false;
-    }
-
-    function get_registered_voters(bytes32 constituency) public view returns (address[] memory) {
-        require(constituency_is_registered(constituency),'Constituency not registered!');
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can register a voter!');
-        return constituency_to_voters[constituency];
-    }
-
-    function allocate_voter(bytes32 constituency, bytes32 voting_centre, address voter) public {
-        require(votingCentre_is_registered(constituency, voting_centre),'Voting centre not registered');
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can register a voter!');
-        require(voter_is_registered_inConstituency(constituency, voter),'Voter should be registered to allocate voter to voting centre');
-        votingCentre_to_voters[voting_centre].push(voter);
-    }
-
-    function get_allocated_voters(bytes32 constituency, bytes32 voting_centre) public view returns (address[] memory) {
-        require(votingCentre_is_registered(constituency, voting_centre),'Voting centre not registered');
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can register a voter!');
-        return votingCentre_to_voters[voting_centre];
-    }
-
-    function register_candidate(bytes32 constituency, address candidate) public {
-        require(constituency_is_registered(constituency),'Constituency not registered!');
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can register a candidate!');
-        require(voter_is_registered(candidate),'Candidate should be registered as a voter to be registered as candidate!');
-        constituency_to_candidates[constituency].push(candidate);
-    }
-
-    function get_candidates(bytes32 constituency) public view returns (address[] memory) {
-        require(constituency_is_registered(constituency),'Constituency not registered!');
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can register a candidate!');
-        return constituency_to_candidates[constituency];
-    }
-
-    function set_electionDate(bytes32 constituency, uint256 start_dateTime, uint256 end_dateTime) public {
-        require(constituency_is_registered(constituency),'Constituency not registered!');
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can register a candidate!');
-        constituency_to_electionDateTime[constituency].push(start_dateTime);
-        constituency_to_electionDateTime[constituency].push(end_dateTime);
-    }
-
-    function set_voteCountDate(bytes32 constituency, uint256 start_dateTime, uint256 end_dateTime) public {
-        require(constituency_is_registered(constituency),'Constituency not registered!');
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can register a candidate!');
-        constituency_to_voteCountDateTime[constituency].push(start_dateTime);
-        constituency_to_voteCountDateTime[constituency].push(end_dateTime);
-    }
-
-    function set_resultDeclareDate(bytes32 constituency, uint256 start_dateTime, uint256 end_dateTime) public {
-        require(constituency_is_registered(constituency),'Constituency not registered!');
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can register a candidate!');
-        constituency_to_resultDeclareCountDateTime[constituency].push(start_dateTime);
-        constituency_to_resultDeclareCountDateTime[constituency].push(end_dateTime);
-    }
-
-    function vote(bytes32 constituency, bytes32 voting_centre, address candidate) public {
-        require(constituency_is_registered(constituency),'Constituency not registered!');
-        require(votingCentre_is_registered(constituency, voting_centre),'Voting centre not registered');
-        require(voter_is_registered_inConstituency(constituency, msg.sender),'Voter should be registered to vote!');
-        require(candidate_is_registered(constituency, candidate),'Candidate should be registered in that constituency!');
-        require(is_election_day(constituency),'Voting can be done only on set election date.');
-        require(!voter_to_votingStatus[msg.sender],'Voter has only one vote and it has been cast.');
-        vote_count[candidate] += 1;
-        voter_to_votingStatus[msg.sender] = true;
-    }
-
-    function get_voterStatus(bytes32 constituency, address voter) public view returns (bool) {
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can count votes!');
-        require(voter_is_registered_inConstituency(constituency, msg.sender),'Voter should be registered to vote!');
-        return voter_to_votingStatus[voter];
-    }
-
-    function get_totalVotes_votingCentre(bytes32 constituency, bytes32 voting_centre) public view returns (uint) {
-        require(votingCentre_is_registered(constituency, voting_centre),'Voting centre not registered');
-        require(is_voteCount_day(constituency),'Votes can be counted only on set vote counting day.');
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can count votes!');
-        uint count = 0;
-        for(uint i = 0; i < votingCentre_to_voters[voting_centre].length; i += 1)
-        {
-            if(voter_to_votingStatus[votingCentre_to_voters[voting_centre][i]])
-            {
-                count += 1;
-            }
-        }
-        return count;
-    }
-
-    function get_totalVotes_constituency(bytes32 constituency) public view returns (uint) {
-        require(constituency_is_registered(constituency),'Constituency not registered!');
-        require(is_voteCount_day(constituency),'Votes can be counted only on set vote counting day.');
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can count votes!');
-        uint count = 0;
-        for(uint i = 0; i < constituency_to_candidates[constituency].length; i += 1)
-        {
-            count += vote_count[constituency_to_candidates[constituency][i]];
-        }
-        return count;
-    }
-
-    function get_totalVotes_candidate(bytes32 constituency, address candidate) public view returns (uint) {
-        require(candidate_is_registered(constituency, candidate),'Candidate should be registered in that constituency!');
-        require(is_voteCount_day(constituency),'Votes can be counted only on set vote counting day.');
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can count votes!');
-        return vote_count[candidate];
-    }
-
-    function compute_constituency_winner(bytes32 constituency) public {
-        require(constituency_is_registered(constituency),'Constituency not registered!');
-        require(is_resultDeclaration_day(constituency),'Results can be viewed only on result declaration day.');
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can count votes!');
-        uint current_winner_count = 0;
-        for(uint i = 0; i < constituency_to_candidates[constituency].length; i += 1)
-        {
-            if(vote_count[constituency_to_candidates[constituency][i]] > current_winner_count)
-            {
-                delete winning_candidates;
-                winning_candidates.push(constituency_to_candidates[constituency][i]);
-                current_winner_count = vote_count[constituency_to_candidates[constituency][i]];
-            }
-            else if(vote_count[constituency_to_candidates[constituency][i]] == current_winner_count)
-            {
-                winning_candidates.push(constituency_to_candidates[constituency][i]);
+                bytes32 candidateHash = keccak256(abi.encodePacked(candidates[j], nonces[i]));
+                for(uint k = 0; k<voteHashes.length; k += 1)
+                {
+                    if(voteHashes[k] == candidateHash)
+                    {
+                        candidateToVoteCount[candidates[j]] += 1;
+                    }
+                }
             }
         }
     }
 
-    function get_constituency_winners(bytes32 constituency) public view returns(address[] memory) {
-        require(constituency_is_registered(constituency),'Constituency not registered!');
-        require(is_resultDeclaration_day(constituency),'Results can be viewed only on result declaration day.');
-        require((caller_is_superAdmin(msg.sender) || caller_is_constituencyAdmin(constituency, msg.sender)),'Only super admins or constituency admins can count votes!');
-        return winning_candidates;
+    function getElectionWinners() public view returns (address[] memory) {
+        require(callerIsAdmin(msg.sender),'Only admins can see vote choices.');
+        require(isResultDeclarationDay(),'Votes can be counted only on set vote counting day.');
+        uint maxVotes = 0;
+        uint totalMaxVotes = 0;
+        for(uint i = 0; i<candidates.length; i += 1)
+        {
+            if(candidateToVoteCount[candidates[i]] > maxVotes)
+            {
+                maxVotes = candidateToVoteCount[candidates[i]];
+                totalMaxVotes = 1;
+            }
+            else if(candidateToVoteCount[candidates[i]] == maxVotes)
+            {
+                totalMaxVotes += 1;
+            }
+        }
+        address[] memory tempCandidates = new address[](totalMaxVotes);
+        uint totalWinners = 0;
+        for(uint i = 0; i<candidates.length; i += 1)
+        {
+            if(candidateToVoteCount[candidates[i]] == maxVotes)
+            {
+                tempCandidates[totalWinners] = candidates[i];
+                totalWinners += 1;
+            }
+        }
+        address[] memory winners = new address[](totalWinners);
+        uint currIndex = 0;
+        for(uint i = 0; i<totalWinners; i += 1)
+        {
+            winners[currIndex] = tempCandidates[i];
+            currIndex += 1;
+        }
+        return winners;
     }
 }
