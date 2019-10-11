@@ -86,6 +86,19 @@ contract Voting_System
         return voterVoted;
     }
 
+    function adminAdded(address potentialAdmin) private view returns(bool) {
+        bool potentialAdminIsAdmin = false;
+        for(uint i = 0; i<admins.length; i += 1)
+        {
+            if(admins[i] == potentialAdmin)
+            {
+                potentialAdminIsAdmin = true;
+                break;
+            }
+        }
+        return potentialAdminIsAdmin;
+    }
+
     function getAdmins() public view returns (address[] memory){
         require(callerIsAdmin(msg.sender),'Only admins can get list of other admins.');
         return admins;
@@ -93,7 +106,10 @@ contract Voting_System
 
     function addAdmin(address admin) public {
         require(callerIsAdmin(msg.sender), 'Only admins can add other admins.');
-        admins.push(admin);
+        if(!adminAdded(admin))
+        {
+            admins.push(admin);
+        }
     }
 
     function registerVoter(address voter) public {
