@@ -1,18 +1,33 @@
 {
-  "name": "pet-shop",
+  "name": "blockchain-voting-application",
   "version": "1.0.0",
   "description": "",
-  "main": "truffle.js",
+  "main": "app.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "dev": "lite-server",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node app",
+    "dev": "nodemon app"
   },
-  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tarun0409/blockchain-voting-application.git"
+  },
+  "author": "Tarun Mohandas",
   "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tarun0409/blockchain-voting-application/issues"
+  },
+  "homepage": "https://github.com/tarun0409/blockchain-voting-application#readme",
+  "dependencies": {
+    "express": "^4.17.1",
+    "express-handlebars": "^3.1.0",
+    "moment": "^2.24.0",
+    "passport-local": "^1.0.0",
+    "uuid": "^3.3.3"
+  },
   "devDependencies": {
-    "lite-server": "^2.5.4"
+    "nodemon": "^1.19.3"
   }
 }
