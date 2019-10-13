@@ -4,6 +4,8 @@ const {ObjectId} = require('mongodb');
 mongoose = require('mongoose');
 Election = require('./models/Election.model');
 Admin = require('./models/Admin.model');
+Candidate = require('./models/Candidate.model');
+Voter = require('./models/Voter.model');
 
 Web3 = require('web3');
 truffleContract = require('truffle-contract');
@@ -113,6 +115,114 @@ app.post('/admins', (req,res) => {
     Admin.create(admins).then((data)=> {
         var responseObj = {};
         responseObj.msg = "Admin(s) inserted successfully";
+        responseObj.input = data;
+        res.status(201).json(responseObj);
+    }).catch((err)=>{
+        console.log(err);
+        return res.status(500).json({msg:"Internal Server Error"}); 
+    });
+});
+
+app.get('/candidates', (req,res) => {
+    Candidate.find().then((docs) => {
+        res.json(docs);
+    });
+});
+
+app.post('/candidates/register', (req,res) => {
+    if(!req.body.candidates)
+    {
+        return res.status(400).json({msg:"Invalid format.", input:req.body});
+    }
+    var candidates = Array();
+    for(i=0; i<req.body.candidates.length; i+=1)
+    {
+        if(!req.body.candidates[i].Name)
+        {
+            return res.status(400).json({msg:"Field not included : Name", input:req.body});
+        }
+        if(!req.body.candidates[i].Public_Key)
+        {
+            return res.status(400).json({msg:"Field not included : Public Key", input:req.body});
+        }
+        if(!req.body.candidates[i].Status)
+        {
+            return res.status(400).json({msg:"Field not included : Public Key", input:req.body});
+        }
+        var candidate = {};
+        candidate.Name = req.body.candidates[i].Name;
+        candidate.Public_Key = req.body.candidates[i].Public_Key;
+        candidate.Status = req.body.candidates[i].Status;
+        candidate.Total_Votes = 0;
+        if(req.body.candidates[i].Party)
+        {
+            candidate.Party = req.body.candidates[i].Party;
+        }
+        if(req.body.candidates[i].Proposal)
+        {
+            candidate.Proposal = req.body.candidates[i].Proposal;
+        }
+        var candidateObj = new Candidate(candidate);
+        candidates.push(candidateObj);
+    }
+    Candidate.create(candidates).then((data)=> {
+        var responseObj = {};
+        responseObj.msg = "Candidate(s) inserted successfully";
+        responseObj.input = data;
+        res.status(201).json(responseObj);
+    }).catch((err)=>{
+        console.log(err);
+        return res.status(500).json({msg:"Internal Server Error"}); 
+    });
+});
+
+app.get('/voters', (req,res) => {
+    Voter.find().then((docs) => {
+        res.json(docs);
+    });
+});
+
+app.post('/voters/register', (req,res) => {
+    if(!req.body.voters)
+    {
+        return res.status(400).json({msg:"Invalid format.", input:req.body});
+    }
+    var voters = Array();
+    for(i=0; i<req.body.voters.length; i+=1)
+    {
+        if(!req.body.voters[i].Name)
+        {
+            return res.status(400).json({msg:"Field not included : Name", input:req.body});
+        }
+        if(!req.body.voters[i].Public_Key)
+        {
+            return res.status(400).json({msg:"Field not included : Public Key", input:req.body});
+        }
+        if(!req.body.voters[i].Status)
+        {
+            return res.status(400).json({msg:"Field not included : Public Key", input:req.body});
+        }
+        var voter = {};
+        voter.Name = req.body.voters[i].Name;
+        voter.Public_Key = req.body.voters[i].Public_Key;
+        if(req.body.voters[i].Voting_Location)
+        {
+            voter.Voting_Location = req.body.voters[i].Voting_Location;
+        }
+        if(req.body.voters[i].Status)
+        {
+            voter.Status = req.body.voters[i].Status;
+        }
+        if(req.body.voters[i].Comments)
+        {
+            voter.Comments = req.body.voters[i].Comments;
+        }
+        var voterObj = new Voter(voter);
+        voters.push(voterObj);
+    }
+    Voter.create(voters).then((data)=> {
+        var responseObj = {};
+        responseObj.msg = "Voter(s) inserted successfully";
         responseObj.input = data;
         res.status(201).json(responseObj);
     }).catch((err)=>{
