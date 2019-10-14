@@ -58,4 +58,30 @@ router.post('/register', (req,res) => {
     });
 });
 
+router.put('/:id', (req,res) => {
+    queryObj = {};
+    queryObj._id = ObjectId(req.params.id);
+    Voter.updateOne(queryObj,req.body, (err) => {
+        if(err)
+        {
+            return res.status(500).json({msg:"Internal Server Error"});
+        }
+        return res.status(200).json({"message":"Updated successfully"});
+    });
+});
+
+router.delete('/:id', (req,res) => {
+    voterObj = {};
+    voterObj._id = ObjectId(req.params.id);
+    Voter.remove(voterObj).then((data) => {
+        var responseObj = {};
+        responseObj.msg = "Candidate deleted successfully";
+        responseObj.details = data;
+        res.status(200).json(responseObj);
+    }).catch((err) => {
+        console.log(err);
+        return res.status(500).json({msg:"Internal Server Error"});
+    });
+});
+
 module.exports = router;

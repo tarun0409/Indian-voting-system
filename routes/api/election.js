@@ -1,10 +1,19 @@
 const express = require('express');
 const router = express.Router();
+ObjectId = require('mongodb').ObjectID;
 mongoose = require('mongoose');
 Election = require('../../models/Election.model');
 
 router.get('/', (req,res) => {
     Election.find().then((docs) => {
+        res.json({elections:docs});
+    });
+});
+
+router.get('/:id', (req,res) => {
+    electionObj = {};
+    electionObj._id = ObjectId(req.params.id);
+    Election.find(electionObj).then((docs) => {
         res.json({elections:docs});
     });
 });
@@ -37,12 +46,20 @@ router.post('/', (req,res) => {
     });
 });
 
+router.put('/:id', (req,res) => {
+    queryObj = {};
+    queryObj._id = ObjectId(req.params.id);
+    Election.updateOne(queryObj,req.body, () => {
+        return res.status(200).json({"message":"Updated successfully"});
+    });
+});
+
 router.delete('/:id', (req,res) => {
     electionObj = {};
     electionObj._id = ObjectId(req.params.id);
     Election.remove(electionObj).then((data) => {
         var responseObj = {};
-        responseObj.msg = "Election(s) deleted successfully";
+        responseObj.msg = "Election deleted successfully";
         responseObj.details = data;
         res.status(200).json(responseObj);
     }).catch((err) => {

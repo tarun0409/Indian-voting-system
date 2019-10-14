@@ -9,6 +9,14 @@ router.get('/', (req,res) => {
     });
 });
 
+router.get('/:id', (req,res) => {
+    adminObj = {};
+    adminObj._id = ObjectId(req.params.id);
+    Admin.find(adminObj).then((docs) => {
+        res.json({elections:docs});
+    });
+});
+
 router.post('/', (req,res) => {
     if(!req.body.admins)
     {
@@ -51,6 +59,32 @@ router.post('/', (req,res) => {
     }).catch((err)=>{
         console.log(err);
         return res.status(500).json({msg:"Internal Server Error"}); 
+    });
+});
+
+router.put('/:id', (req,res) => {
+    queryObj = {};
+    queryObj._id = ObjectId(req.params.id);
+    Admin.updateOne(queryObj,req.body, (err) => {
+        if(err)
+        {
+            return res.status(500).json({msg:"Internal Server Error"});
+        }
+        return res.status(200).json({"message":"Updated successfully"});
+    });
+});
+
+router.delete('/:id', (req,res) => {
+    adminObj = {};
+    adminObj._id = ObjectId(req.params.id);
+    Admin.remove(adminObj).then((data) => {
+        var responseObj = {};
+        responseObj.msg = "Admin deleted successfully";
+        responseObj.details = data;
+        res.status(200).json(responseObj);
+    }).catch((err) => {
+        console.log(err);
+        return res.status(500).json({msg:"Internal Server Error"});
     });
 });
 
