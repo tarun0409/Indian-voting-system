@@ -18,13 +18,17 @@ router.get('/:id', (req,res) => {
     });
 });
 
-router.post('/:electionId', (req,res) => {
+router.post('/', (req,res) => {
     if(!req.body.admins)
     {
         return res.status(400).json({msg:"Invalid format.", input:req.body});
     }
+    if(!req.query.electionId)
+    {
+        return res.status(400).json({msg:"Query field not included : electionId", input:req.query});
+    }
     var electionQuery = {};
-    electionQuery._id = ObjectId(req.params.electionId);
+    electionQuery._id = ObjectId(req.query.electionId);
     electionContract = null;
     Election.find(electionQuery).then((docs) => {
         if(docs.length <= 0)
@@ -95,7 +99,7 @@ router.post('/:electionId', (req,res) => {
                 responseObj.msg = "Admin(s) inserted successfully";
                 responseObj.input = data;
                 elObj = {};
-                elObj._id = req.params.electionId;
+                elObj._id = req.query.electionId;
                 electionContract.deployed().then((instance) => {
                     var adminPromise = null;
                     instance.addAdmin(data[0].Public_Key,fromObj).then(function () {
