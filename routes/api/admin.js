@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-mongoose = require('mongoose');
+ObjectId = require('mongodb').ObjectID;
 Admin = require('../../models/Admin.model');
+getSmartContract = require('../../utils/blockchain');
 
 router.get('/', (req,res) => {
     Admin.find().then((docs) => {
@@ -17,48 +18,101 @@ router.get('/:id', (req,res) => {
     });
 });
 
-router.post('/', (req,res) => {
+router.post('/:electionId', (req,res) => {
     if(!req.body.admins)
     {
         return res.status(400).json({msg:"Invalid format.", input:req.body});
     }
-    var admins = Array();
-    for(i=0; i<req.body.admins.length; i+=1)
-    {
-        if(!req.body.admins[i].Name)
+    var electionQuery = {};
+    electionQuery._id = ObjectId(req.params.electionId);
+    electionContract = null;
+    Election.find(electionQuery).then((docs) => {
+        if(docs.length <= 0)
         {
-            return res.status(400).json({msg:"Field not included : Name", input:req.body});
+            return res.status(400).json({msg:"Invalid election ID"});
         }
-        if(!req.body.admins[i].Public_Key)
+        electionContract = getSmartContract(docs[0].Port);
+        var admins = Array();
+        for(i=0; i<req.body.admins.length; i+=1)
         {
-            return res.status(400).json({msg:"Field not included : Public Key", input:req.body});
+            if(!req.body.admins[i].Name)
+            {
+                return res.status(400).json({msg:"Field not included : Name", input:req.body});
+            }
+            if(!req.body.admins[i].Public_Key)
+            {
+                return res.status(400).json({msg:"Field not included : Public Key", input:req.body});
+            }
+            var admin = {};
+            admin.Name = req.body.admins[i].Name;
+            admin.Public_Key = req.body.admins[i].Public_Key;
+            if(req.body.admins[i].Phone_Number)
+            {
+                admin.Phone_Number = req.body.admins[i].Phone_Number;
+            }
+            if(req.body.admins[i].Address)
+            {
+                admin.Address = req.body.admins[i].Address;
+            }
+            if(req.body.admins[i].Comments)
+            {
+                admin.Comments = req.body.admins[i].Comments;
+            }
+            var adminObj = new Admin(admin);
+            admins.push(adminObj);
         }
-        var admin = {};
-        admin.Name = req.body.admins[i].Name;
-        admin.Public_Key = req.body.admins[i].Public_Key;
-        if(req.body.admins[i].Phone_Number)
+        var adminQuery = {};
+        if(req.query.from)
         {
-            admin.Phone_Number = req.body.admins[i].Phone_Number;
+            adminQuery._id = ObjectId(req.query.from);
         }
-        if(req.body.admins[i].Address)
-        {
-            admin.Address = req.body.admins[i].Address;
-        }
-        if(req.body.admins[i].Comments)
-        {
-            admin.Comments = req.body.admins[i].Comments;
-        }
-        var adminObj = new Admin(admin);
-        admins.push(adminObj);
-    }
-    Admin.create(admins).then((data)=> {
-        var responseObj = {};
-        responseObj.msg = "Admin(s) inserted successfully";
-        responseObj.input = data;
-        res.status(201).json(responseObj);
-    }).catch((err)=>{
+        // console.log(adminQuery);
+        Admin.find(adminQuery).then((adminDocs) => {
+            
+            if(adminDocs.length > 0 && !req.query.from)
+            {
+                return res.status(400).json({msg:"Query to be included: from:{adminId}", query:req.query});
+            }
+            else if(adminDocs.length === 0 && req.query.from)
+            {
+                return res.status(400).json({msg:"Invalid Admin ID", query:req.query});
+            }
+            else if(adminDocs.length > 0 && req.query.from && String(adminDocs[0]._id) !== req.query.from)
+            {
+                return res.status(400).json({msg:"Invalid Admin ID", query:req.query});
+            }
+            var fromObj = {};
+            if(adminDocs.length > 0)
+            {
+                fromObj.from = adminDocs[0].Public_Key;
+            }
+            else
+            {
+                fromObj.from = admins[0].Public_Key;
+            }
+            Admin.create(admins).then((data)=> {
+                var responseObj = {};
+                responseObj.msg = "Admin(s) inserted successfully";
+                responseObj.input = data;
+                elObj = {};
+                elObj._id = req.params.electionId;
+                electionContract.deployed().then((instance) => {
+                    var adminPromise = null;
+                    instance.addAdmin(data[0].Public_Key,fromObj).then(function () {
+                        return res.status(201).json(responseObj);
+                    }).catch((err) => {
+                        console.log(err);
+                        return res.status(500).json({msg:"Internal Server Error"}); 
+                    });
+                });
+            }).catch((err)=>{
+                console.log(err);
+                return res.status(500).json({msg:"Internal Server Error"}); 
+            });
+        });
+    }).catch((err) => {
         console.log(err);
-        return res.status(500).json({msg:"Internal Server Error"}); 
+        return res.status(500).json({msg:"Internal Server Error"});
     });
 });
 
@@ -81,7 +135,7 @@ router.delete('/:id', (req,res) => {
         var responseObj = {};
         responseObj.msg = "Admin deleted successfully";
         responseObj.details = data;
-        res.status(200).json(responseObj);
+        return res.status(200).json(responseObj);
     }).catch((err) => {
         console.log(err);
         return res.status(500).json({msg:"Internal Server Error"});

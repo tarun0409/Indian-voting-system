@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-mongoose = require('mongoose');
+ObjectId = require('mongodb').ObjectID;
 Candidate = require('../../models/Candidate.model');
+Election = require('../../models/Election.model');
 
 router.get('/', (req,res) => {
     Candidate.find().then((docs) => {
@@ -9,11 +10,22 @@ router.get('/', (req,res) => {
     });
 });
 
-router.post('/register', (req,res) => {
+router.post('/register/:electionId', (req,res) => {
     if(!req.body.candidates)
     {
         return res.status(400).json({msg:"Invalid format.", input:req.body});
     }
+    var electionQuery = {};
+    electionQuery._id = ObjectId(req.params.electionId);
+    Election.find(electionQuery).then((docs) => {
+        if(docs.length <= 0)
+        {
+            return res.status(400).json({msg:"Invalid election ID"});
+        }
+    }).catch((err) => {
+        console.log(err);
+        return res.status(500).json({msg:"Internal Server Error"});
+    });
     var candidates = Array();
     for(i=0; i<req.body.candidates.length; i+=1)
     {

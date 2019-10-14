@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 ObjectId = require('mongodb').ObjectID;
-mongoose = require('mongoose');
 Election = require('../../models/Election.model');
 
 router.get('/', (req,res) => {
@@ -30,8 +29,23 @@ router.post('/', (req,res) => {
         {
             return res.status(400).json({msg:"Field not included : Name", input:req.body});
         }
+        if(!req.body.elections[i].Port)
+        {
+            return res.status(400).json({msg:"Field not included : Port", input:req.body});
+        }
+        Election.find().then((docs) => {
+            for(i=0; i<docs.length; i++)
+            {
+                if(docs[i].Port === req.body.elections[i].Port)
+                {
+                    return res.status(400).json({msg:"Blockchain server already in use by another election"});
+                }
+            }
+        });
         var election = {};
         election.Name = req.body.elections[i].Name;
+        election.Port = req.body.elections[i].Port;
+        // election.Status = 'disabled';
         var electionObj = new Election(election);
         elections.push(electionObj);
     }

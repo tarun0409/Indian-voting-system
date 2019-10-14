@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-mongoose = require('mongoose');
+ObjectId = require('mongodb').ObjectID;
 Voter = require('../../models/Voter.model');
 
 router.get('/', (req,res) => {
@@ -75,7 +75,7 @@ router.delete('/:id', (req,res) => {
     voterObj._id = ObjectId(req.params.id);
     Voter.remove(voterObj).then((data) => {
         var responseObj = {};
-        responseObj.msg = "Candidate deleted successfully";
+        responseObj.msg = "Voter deleted successfully";
         responseObj.details = data;
         res.status(200).json(responseObj);
     }).catch((err) => {
