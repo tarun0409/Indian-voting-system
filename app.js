@@ -16,12 +16,3 @@ app.use('/voters', require('./routes/api/voter'));
 const PORT = process.env.PORT || 9000;
 
 app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
-
-// VotingSystemContract.deployed().then((instance) => {
-//     instance.getAdmins().then((admins) => {
-//         console.log(admins);
-//         console.log(typeof admins[0]);
-//     });
-// });
-
-
