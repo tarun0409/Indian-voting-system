@@ -177,12 +177,12 @@ router.post('/', (req,res) => {
                     });
                 }).catch((err)=>{
                     console.log(err);
-                    return res.status(500).json({msg:"Internal Server Error"}); 
+                    return res.status(500).json({msg:"Some problem occurred when creating admins"});
                 });
             });
         }).catch((err) => {
             console.log(err);
-            return res.status(500).json({msg:"Internal Server Error"});
+            return res.status(500).json({msg:"Problem while getting account list from blockchain server"});
         });
     });
 });
@@ -202,14 +202,54 @@ router.put('/:id', (req,res) => {
 router.delete('/:id', (req,res) => {
     adminObj = {};
     adminObj._id = ObjectId(req.params.id);
-    Admin.remove(adminObj).then((data) => {
-        var responseObj = {};
-        responseObj.msg = "Admin deleted successfully";
-        responseObj.details = data;
-        return res.status(200).json(responseObj);
-    }).catch((err) => {
-        console.log(err);
-        return res.status(500).json({msg:"Internal Server Error"});
+    if(!req.query.electionId)
+    {
+        return res.status(400).json({msg:"Query field not included : electionId", input:req.query});
+    }
+    if(!req.query.from)
+    {
+        return res.status(400).json({msg:"Query field not included : from:{adminId}", input:req.query});
+    }
+    var adminQuery = {};
+    adminQuery._id = ObjectId(req.query.from);
+    Admin.find(adminQuery).then((fromAdmins) => {
+        if(fromAdmins.length <= 0)
+        {
+            return res.status(400).json({msg:"Invalid from admin ID"});
+        }
+        fromAdminObj = {};
+        fromAdminObj.from = fromAdmins[0].Public_Key;
+        var electionQuery = {};
+        electionQuery._id = ObjectId(req.query.electionId);
+        Election.find(electionQuery).then((elections) => {
+            if(elections.length <= 0)
+            {
+                return res.status(400).json({msg:"Invalid election ID"});
+            }
+            Admin.find(adminObj).then((admins) => {
+                BlockchainApp.initBlockchainServer(elections[0].Port);
+                var electionContract = BlockchainApp.getSmartContract();
+                electionContract.deployed().then((instance) => {
+                    instance.removeAdmin(admins[0].Public_Key,fromAdminObj).then(() => {
+                        Admin.remove(adminObj).then((data) => {
+                            var responseObj = {};
+                            responseObj.msg = "Admin deleted successfully";
+                            responseObj.details = data;
+                            return res.status(200).json(responseObj);
+                        }).catch((err) => {
+                            console.log(err);
+                            return res.status(500).json({msg:"Some problem with deleting admin from database"});
+                        });
+                    }).catch((err) => {
+                        console.log(err);
+                        return res.status(500).json({msg:"Problem with removing admin from blockchain server"});
+                    });
+                }).catch((err) => {
+                console.log(err);
+                return res.status(500).json({msg:"Problem with deploying smart contract"});
+                });
+            });
+        });
     });
 });
 
