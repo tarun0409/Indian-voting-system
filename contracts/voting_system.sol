@@ -112,6 +112,27 @@ contract Voting_System
         }
     }
 
+    function removeAdmin(address admin) public {
+        require(callerIsAdmin(msg.sender), 'Only admins can add other admins.');
+        uint index = 0;
+        for( ; index<admins.length; index += 1)
+        {
+            if(admins[index] == admin)
+            {
+                break;
+            }
+        }
+        if(index < admins.length-1)
+        {
+            for(uint i = index; i < admins.length-1 ; i += 1)
+            {
+                admins[i] = admins[i+1];
+            }
+            delete admins[admins.length-1];
+            admins.length--;
+        }
+    }
+
     function registerVoter(address voter) public {
         require(callerIsAdmin(msg.sender), 'Only admins can register a voter!');
         voters.push(voter);

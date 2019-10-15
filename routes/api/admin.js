@@ -5,16 +5,66 @@ Admin = require('../../models/Admin.model');
 getSmartContract = require('../../utils/blockchain');
 
 router.get('/', (req,res) => {
-    Admin.find().then((docs) => {
-        res.json({admins:docs});
+    if(!req.query.electionId)
+    {
+        return res.status(400).json({msg:"Query field not included : electionId", input:req.query});
+    }
+    var electionQuery = {};
+    electionQuery._id = ObjectId(req.query.electionId);
+    Election.find(electionQuery).then((elections) => {
+        var electionContract = getSmartContract(elections[0].Port);
+        electionContract.deployed().then((instance) => {
+            instance.getAdmins().then((admins) => {
+                var adminQuery = {};
+                console.log(admins);
+                adminQuery.Public_Key = {"$in":admins};
+                Admin.find(adminQuery).then((adminsFetched) => {
+                    res.json({admins:adminsFetched});
+                }).catch((err) => {
+                    console.log(err);
+                    res.status(500).json({msg:"Problem with fetching admins from database"});
+                });
+            }).catch((err) => {
+                console.log(err);
+                res.status(500).json({msg:"Problem with fetching admins from blockchain"});
+            });
+        });
+    }).catch((err) => {
+        res.status(500).json({msg:"Problem with deploying contract"});
     });
 });
 
 router.get('/:id', (req,res) => {
-    adminObj = {};
-    adminObj._id = ObjectId(req.params.id);
-    Admin.find(adminObj).then((docs) => {
-        res.json({elections:docs});
+    if(!req.query.electionId)
+    {
+        return res.status(400).json({msg:"Query field not included : electionId", input:req.query});
+    }
+    var electionQuery = {};
+    electionQuery._id = ObjectId(req.query.electionId);
+    Election.find(electionQuery).then((elections) => {
+        var electionContract = getSmartContract(elections[0].Port);
+        electionContract.deployed().then((instance) => {
+            instance.getAdmins().then((admins) => {
+                var adminQuery = {};
+                adminQuery._id = ObjectId(req.params.id);
+                Admin.find(adminQuery).then((adminsFetched) => {
+                    if(adminsFetched[0].Public_Key in admins)
+                    {
+                        res.json({admins:adminsFetched});
+                    }
+                    else
+                    {
+                        res.status(204).json({admins:[]});
+                    }
+                }).catch((err) => {
+                    res.status(500).json({msg:"Problem with fetching admins from database"});
+                });
+            }).catch((err) => {
+                res.status(500).json({msg:"Problem with fetching admins from blockchain"});
+            });
+        });
+    }).catch((err) => {
+        res.status(500).json({msg:"Problem with deploying contract"});
     });
 });
 
