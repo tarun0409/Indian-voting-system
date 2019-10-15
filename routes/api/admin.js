@@ -70,7 +70,6 @@ router.post('/', (req,res) => {
         {
             adminQuery._id = ObjectId(req.query.from);
         }
-        // console.log(adminQuery);
         Admin.find(adminQuery).then((adminDocs) => {
             
             if(adminDocs.length > 0 && !req.query.from)
@@ -100,12 +99,18 @@ router.post('/', (req,res) => {
                 responseObj.input = data;
                 elObj = {};
                 elObj._id = req.query.electionId;
+                createdAdmin = {};
+                createdAdmin._id = ObjectId(data[0]._id);
                 electionContract.deployed().then((instance) => {
-                    var adminPromise = null;
                     instance.addAdmin(data[0].Public_Key,fromObj).then(function () {
                         return res.status(201).json(responseObj);
                     }).catch((err) => {
                         console.log(err);
+                        Admin.remove(createdAdmin).then((data) => {
+                            return res.status(500).json({msg:"Some problem occurred when creating admins"});
+                        }).catch((err) => {
+                            console.log(err);
+                        });
                         return res.status(500).json({msg:"Internal Server Error"}); 
                     });
                 });
