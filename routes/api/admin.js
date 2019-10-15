@@ -190,6 +190,10 @@ router.post('/', (req,res) => {
 router.put('/:id', (req,res) => {
     queryObj = {};
     queryObj._id = ObjectId(req.params.id);
+    if(req.body.Public_Key)
+    {
+        return res.status(400).json({msg:"Public Key of admin cannot be changed. You may try to delete the admin and insert again"});
+    }
     Admin.updateOne(queryObj,req.body, (err) => {
         if(err)
         {
