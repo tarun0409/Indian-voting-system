@@ -207,17 +207,87 @@ router.put('/:id', (req,res) => {
 });
 
 router.delete('/:id', (req,res) => {
-    voterObj = {};
-    voterObj._id = ObjectId(req.params.id);
-    Voter.remove(voterObj).then((data) => {
-        var responseObj = {};
-        responseObj.msg = "Voter deleted successfully";
-        responseObj.details = data;
-        res.status(200).json(responseObj);
+    if(!req.query.electionId)
+    {
+        return res.status(400).json({msg:"Query field not included : electionId", input:req.query});
+    }
+    if(!req.query.from)
+    {
+        return res.status(400).json({msg:"Query field not included : from", input:req.query});
+    }
+    electionQuery = {};
+    electionQuery._id = ObjectId(req.query.electionId);
+    Election.find(electionQuery).then((elections) => {
+        if(elections.length === 0)
+        {
+            return res.status(400).json({msg:"Invalid election ID", input:req.query});
+        }
+        var adminQuery = {};
+        adminQuery._id = ObjectId(req.query.from);
+        Admin.find(adminQuery).then((admins) => {
+            if(admins.length === 0)
+            {
+                return res.status(400).json({msg:"Invalid from admin ID", input:req.query});
+            }
+            fromObj = {};
+            fromObj.from = admins[0].Public_Key;
+            var voterQuery = {};
+            voterQuery._id = ObjectId(req.params.id);
+            Voter.find(voterQuery).then((voters) => {
+                if(voters.length === 0)
+                {
+                    return res.status(400).json({msg:"Invalid voter ID", input:req.query});
+                }
+                var delVoterPubKey = voters[0].Public_Key;
+                var delVoterObj = {};
+                delVoterObj._id = ObjectId(req.params.id);
+                BlockchainApp.initBlockchainServer(elections[0].Port);
+                var electionContract = BlockchainApp.getSmartContract();
+                electionContract.deployed().then((instance) => {
+                    instance.removeVoter(delVoterPubKey, fromObj).then(() => {
+                        Voter.deleteOne(delVoterObj, (err) => {
+                            if(err)
+                            {
+                                console.log(err);
+                                return res.status(500).json({msg:"Some problem occurred while removing voter from database"});
+                            }
+                            return res.status(200).json({msg:"Voter deleted successfully"});
+                        });
+                    }).catch((err) => {
+                        console.log(err);
+                        return res.status(500).json({msg:"Some problem occurred while removing voter from blockchain"});
+                    });
+                }).catch((err) => {
+                    console.log(err);
+                    return res.status(500).json({msg:"Some problem occurred while deploying smart contract"});
+                });
+
+            }).catch((err) => {
+                console.log(err);
+                return res.status(500).json({msg:"Some problem occurred while fetching voters from database"});
+            });
+        }).catch((err) => {
+            console.log(err);
+            return res.status(500).json({msg:"Some problem occurred while fetching admins from database"});
+        });
     }).catch((err) => {
         console.log(err);
-        return res.status(500).json({msg:"Internal Server Error"});
+        return res.status(500).json({msg:"Some problem occurred while fetching elections from database"});
     });
 });
+
+// router.delete('/:id', (req,res) => {
+//     voterObj = {};
+//     voterObj._id = ObjectId(req.params.id);
+//     Voter.remove(voterObj).then((data) => {
+//         var responseObj = {};
+//         responseObj.msg = "Voter deleted successfully";
+//         responseObj.details = data;
+//         res.status(200).json(responseObj);
+//     }).catch((err) => {
+//         console.log(err);
+//         return res.status(500).json({msg:"Internal Server Error"});
+//     });
+// });
 
 module.exports = router;
