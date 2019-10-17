@@ -86,6 +86,19 @@ contract Voting_System
     function makeSuperAdmin(address addr) public
     {
         require(superAdmin == address(0) || addressIsSuperAdmin(msg.sender), 'The caller should be super admin');
+        bool adminFound = false;
+        for(uint i = 0; i<admins.length; i += 1)
+        {
+            if(admins[i] == superAdmin)
+            {
+                adminFound = true;
+                break;
+            }
+        }
+        if(!adminFound)
+        {
+            addAdmin(superAdmin);
+        }
         superAdmin = addr;
     }
 

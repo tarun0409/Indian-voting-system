@@ -195,27 +195,127 @@ router.post('/', (req,res) => {
     });
 });
 
-router.put('/:id', (req,res) => {
-    queryObj = {};
-    queryObj._id = ObjectId(req.params.id);
-    if(req.body.Public_Key)
+router.put('/:id/promote', (req,res) => {
+    if(!req.query.electionId)
     {
-        return res.status(400).json({msg:"Public Key of admin cannot be changed. You may try to delete the admin and insert again"});
+        return res.status(400).json({msg:"Fields to be included: electionId"});
     }
-    if(req.body.Election_ID)
+    if(!req.query.from)
     {
-        return res.status(400).json({msg:"Election ID of admin cannot be changed"});
+        return res.status(400).json({msg:"Fields to be included: from"});
     }
-    if("Is_Super_Admin" in req.body)
-    {
-        return res.status(400).json({msg:"Cannot update super admin with this API."});
-    }
-    Admin.updateOne(queryObj,req.body, (err) => {
-        if(err)
+    electionQuery = {};
+    electionQuery._id = ObjectId(req.query.electionId);
+    Election.find(electionQuery).then((elections) => {
+        if(elections.length <= 0)
         {
-            return res.status(500).json({msg:"Some problem occurred while updating admin(s)"});
+            return res.status(400).json({msg:"Invalid electionId", query:req.query});
         }
-        return res.status(200).json({msg:"Admin(s) updated successfully", data:req.body});
+        queryObj = {};
+        orArray = Array();
+        orArray.push({"_id":ObjectId(req.params.id)});
+        orArray.push({"Is_Super_Admin":true});
+        queryObj["$or"] = orArray;
+        Admin.find(queryObj).then((admins) => {
+            if(admins.length === 0)
+            {
+                return res.status(400).json({msg:"Invalid Admin/from Admin ID", params: req.params});
+            }
+            if(admins.length === 1 && admins[0].Is_Super_Admin)
+            {
+                return res.status(400).json({msg:"Admin is already super admin", params: req.params});
+            }
+            if((String(admins[0]._id) === req.query.from && !admins[0].Is_Super_Admin) || (String(admins[1]._id) === req.query.from && !admins[1].Is_Super_Admin))
+            {
+                return res.status(400).json({msg:"Only super admins are allowed to promote admins", params: req.params});
+            }
+            var fromObj = {};
+            fromObj.from = (admins[0].Is_Super_Admin) ? (admins[0].Public_Key) : (admins[1].Public_Key);
+            var promoteQuery = {};
+            promoteQuery._id = ObjectId(req.params.id);
+            var promoteUpdate = {};
+            promoteUpdate.Is_Super_Admin = true;
+            var promotePubKey = (String(admins[0]._id) === req.params.id) ? (admins[0].Public_Key) : (admins[1].Public_Key);
+            var depromoteQuery = {};
+            depromoteQuery._id = (admins[0].Is_Super_Admin) ? (ObjectId(admins[0]._id)) : (ObjectId(admins[1]._id));
+            var depromoteUpdate = {};
+            depromoteUpdate.Is_Super_Admin = false;
+            BlockchainApp.initBlockchainServer(elections[0].Port);
+            var electionContract = BlockchainApp.getSmartContract();
+            electionContract.deployed().then((instance) => {
+                instance.makeSuperAdmin(promotePubKey, fromObj).then(() => {
+                    Admin.updateOne(promoteQuery, promoteUpdate, (err) => {
+                        if(err)
+                        {
+                            console.log(err);
+                            return res.status(500).json({msg:"Some problem occurred while updating super admin in database"});
+                        }
+                        Admin.updateOne(depromoteQuery, depromoteUpdate, (err) => {
+                            if(err)
+                            {
+                                console.log(err);
+                                return res.status(500).json({msg:"Some problem occurred while updating super admin in database"});
+                            }
+                            return res.status(200).json({msg:"Admin promoted successfully", data:req.body});
+                        });
+                    });
+                }).catch((err) => {
+                    console.log(err);
+                    return res.status(500).json({msg:"Some problem occurred while updating super admin in blockchain"});
+                });
+            }).catch((err) => {
+                console.log(err);
+                return res.status(500).json({msg:"Some problem occurred while trying to deploy smart contract"});
+            });
+
+        }).catch((err) => {
+            console.log(err);
+            return res.status(500).json({msg:"Some problem occurred while fetching admins from database"});
+        });
+
+    }).catch((err) => {
+        console.log(err);
+        return res.status(500).json({msg:"Some problem occurred while fetching elections from database"}); 
+    });
+    
+});
+
+router.put('/:id', (req,res) => {
+    if(!req.query.electionId)
+    {
+        return res.status(400).json({msg:"Fields to be included: electionId"});
+    }
+    electionQuery = {};
+    electionQuery._id = ObjectId(req.query.electionId);
+    Election.find(electionQuery).then((elections) => {
+        if(elections.length <= 0)
+        {
+            return res.status(400).json({msg:"Invalid electionId"});
+        }
+        queryObj = {};
+        queryObj._id = ObjectId(req.params.id);
+        if(req.body.Public_Key)
+        {
+            return res.status(400).json({msg:"Public Key of admin cannot be changed. You may try to delete the admin and insert again"});
+        }
+        if(req.body.Election_ID)
+        {
+            return res.status(400).json({msg:"Election ID of admin cannot be changed"});
+        }
+        if("Is_Super_Admin" in req.body)
+        {
+            return res.status(400).json({msg:"Cannot update super admin with this API."});
+        }
+        Admin.updateOne(queryObj,req.body, (err) => {
+            if(err)
+            {
+                return res.status(500).json({msg:"Some problem occurred while updating admin(s)"});
+            }
+            return res.status(200).json({msg:"Admin updated successfully", data:req.body});
+        });
+    }).catch((err) => {
+        console.log(err);
+        return res.status(500).json({msg:"Some problem occurred while fetching elections from database"}); 
     });
 });
 
