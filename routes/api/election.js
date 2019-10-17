@@ -45,7 +45,6 @@ router.post('/', (req,res) => {
         var election = {};
         election.Name = req.body.elections[i].Name;
         election.Port = req.body.elections[i].Port;
-        // election.Status = 'disabled';
         var electionObj = new Election(election);
         elections.push(electionObj);
     }

@@ -4,19 +4,53 @@ ObjectId = require('mongodb').ObjectID;
 Candidate = require('../../models/Candidate.model');
 Election = require('../../models/Election.model');
 
+
 router.get('/', (req,res) => {
-    Candidate.find().then((docs) => {
-        res.json(docs);
+    if(!req.query.electionId)
+    {
+        return res.status(400).json({msg:"Query field not included : electionId", input:req.query});
+    }
+    var electionQuery = {};
+    electionQuery._id = ObjectId(req.query.electionId);
+    Election.find(electionQuery).then((elections) => {
+        BlockchainApp.initBlockchainServer(elections[0].Port);
+        var electionContract = BlockchainApp.getSmartContract();
+        electionContract.deployed().then((instance) => {
+            instance.getRegisteredCandidates().then((candidates) => {
+                var candidateQuery = {};
+                candidateQuery.Public_Key = {"$in":candidates};
+                Candidate.find(candidateQuery).then((candidatesFetched) => {
+                    res.json({candidates:candidatesFetched});
+                }).catch((err) => {
+                    console.log(err);
+                    res.status(500).json({msg:"Problem with fetching candidates from database"});
+                });
+            }).catch((err) => {
+                console.log(err);
+                res.status(500).json({msg:"Problem with fetching candidates from blockchain"});
+            });
+        });
+    }).catch((err) => {
+        res.status(500).json({msg:"Problem with deploying contract"});
     });
 });
+// router.get('/', (req,res) => {
+//     Candidate.find().then((docs) => {
+//         res.json(docs);
+//     });
+// });
 
-router.post('/register/:electionId', (req,res) => {
+router.post('/register', (req,res) => {
     if(!req.body.candidates)
     {
         return res.status(400).json({msg:"Invalid format.", input:req.body});
     }
+    if(!req.query.electionId)
+    {
+        return res.status(400).json({msg:"Fields to include : electionId", input:req.body});
+    }
     var electionQuery = {};
-    electionQuery._id = ObjectId(req.params.electionId);
+    electionQuery._id = ObjectId(req.query.electionId);
     Election.find(electionQuery).then((docs) => {
         if(docs.length <= 0)
         {
