@@ -23,15 +23,15 @@ contract Voting_System
     }
 
     function addressIsAdmin(address caller) private view returns(bool) {
-        bool caller_is_super_admin = false;
+        bool caller_is_admin = false;
         for(uint i = 0; i<admins.length; i += 1)
         {
             if(admins[i]==caller)
             {
-                caller_is_super_admin = true;
+                caller_is_admin = true;
             }
         }
-        return caller_is_super_admin;
+        return caller_is_admin;
     }
 
     function voterIsRegistered(address voter) private view returns (bool) {
@@ -132,17 +132,17 @@ contract Voting_System
     }
 
     function getAdmins() public view returns (address[] memory){
-        require(addressIsAdmin(msg.sender),'Only admins can get list of other admins.');
+        require(addressIsAdmin(msg.sender) || addressIsSuperAdmin(msg.sender),'Only admins can get list of other admins.');
         return admins;
     }
 
     function registerVoter(address voter) public {
-        require(addressIsAdmin(msg.sender), 'Only admins can register a voter!');
+        require(addressIsAdmin(msg.sender) || addressIsSuperAdmin(msg.sender), 'Only admins can register a voter!');
         voters.push(voter);
     }
 
     function removeVoter(address voter) public {
-        require(addressIsAdmin(msg.sender), 'Only super admin can remove other admins.');
+        require(addressIsAdmin(msg.sender) || addressIsSuperAdmin(msg.sender), 'Only super admin can remove other admins.');
         uint index = 0;
         for( ; index<voters.length; index += 1)
         {
@@ -163,18 +163,18 @@ contract Voting_System
     }
 
     function getRegisteredVoters() public view returns (address[] memory) {
-        require(addressIsAdmin(msg.sender), 'Only admins can register a voter!');
+        require(addressIsAdmin(msg.sender) || addressIsSuperAdmin(msg.sender), 'Only admins can register a voter!');
         return voters;
     }
 
     function registerCandidate(address candidate) public {
-        require(addressIsAdmin(msg.sender), 'Only admins can register a candidate.');
+        require(addressIsAdmin(msg.sender) || addressIsSuperAdmin(msg.sender), 'Only admins can register a candidate.');
         require(voterIsRegistered(candidate),'Candidate should be registered as a voter to be registered as candidate!');
         candidates.push(candidate);
     }
 
     function removeCandidate(address candidate) public {
-        require(addressIsAdmin(msg.sender), 'Only super admin can remove other admins.');
+        require(addressIsAdmin(msg.sender) || addressIsSuperAdmin(msg.sender), 'Only super admin can remove other admins.');
         uint index = 0;
         for( ; index<candidates.length; index += 1)
         {
@@ -195,18 +195,18 @@ contract Voting_System
     }
 
     function getRegisteredCandidates() public view returns (address[] memory) {
-        require(addressIsAdmin(msg.sender), 'Only admins can register a candidate.');
+        require(addressIsAdmin(msg.sender) || addressIsSuperAdmin(msg.sender), 'Only admins can register a candidate.');
         return candidates;
     }
 
     function setElectionDate(uint256 startDateTime, uint256 endDateTime) public {
-        require(addressIsAdmin(msg.sender), 'Only admins can set an election date.');
+        require(addressIsAdmin(msg.sender) || addressIsSuperAdmin(msg.sender), 'Only admins can set an election date.');
         electionStartDateTime = startDateTime;
         electionEndDateTime = endDateTime;
     }
 
     function setVoteCountDate(uint256 startDateTime, uint256 endDateTime) public {
-        require(addressIsAdmin(msg.sender), 'Only admins can set vote count date.');
+        require(addressIsAdmin(msg.sender) || addressIsSuperAdmin(msg.sender), 'Only admins can set vote count date.');
         voteCountStartDateTime = startDateTime;
         voteCountEndDateTime = endDateTime;
     }
@@ -220,13 +220,13 @@ contract Voting_System
     }
 
     function getTotalVotesCast() public view returns (uint) {
-        require(addressIsAdmin(msg.sender),'Only admins can see vote choices.');
+        require(addressIsAdmin(msg.sender) || addressIsSuperAdmin(msg.sender),'Only admins can see vote choices.');
         return voteHashes.length;
 
     }
 
     function getTotalVotesCandidate(address candidate, bytes32[] memory nonces) public view returns (uint) {
-        require(addressIsAdmin(msg.sender),'Only admins can see vote choices.');
+        require(addressIsAdmin(msg.sender) || addressIsSuperAdmin(msg.sender),'Only admins can see vote choices.');
         require(candidateIsRegistered(candidate),'Candidate should be registered.');
         require(isVoteCountDay(),'Votes can be counted only on set vote counting day.');
         uint totalVotes = 0;
@@ -245,7 +245,7 @@ contract Voting_System
     }
 
     function countAllVotes(bytes32[] memory nonces) public {
-        require(addressIsAdmin(msg.sender),'Only admins can see vote choices.');
+        require(addressIsAdmin(msg.sender) || addressIsSuperAdmin(msg.sender),'Only admins can see vote choices.');
         require(isVoteCountDay(),'Votes can be counted only on set vote counting day.');
         for(uint i = 0; i<nonces.length; i += 1)
         {

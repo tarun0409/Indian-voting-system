@@ -1,60 +1,169 @@
 const express = require('express');
 const router = express.Router();
 ObjectId = require('mongodb').ObjectID;
+Election = require('../../models/Election.model');
+Admin = require('../../models/Admin.model');
 Voter = require('../../models/Voter.model');
+BlockchainApp = require('../../utils/blockchain');
 
 router.get('/', (req,res) => {
-    Voter.find().then((docs) => {
-        res.json(docs);
+    if(!req.query.electionId)
+    {
+        return res.status(400).json({msg:"Query field not included : electionId", input:req.query});
+    }
+    var electionQuery = {};
+    electionQuery._id = ObjectId(req.query.electionId);
+    Election.find(electionQuery).then((elections) => {
+        if(elections.length === 0)
+        {
+            return res.status(400).json({msg:"Invalid election ID", input:req.query});
+        }
+        voterQuery = {};
+        voterQuery.Election_ID = ObjectId(req.query.electionId);
+        Voter.find(voterQuery).then((votersFetched) => {
+            if(votersFetched.length === 0)
+            {
+                return res.status(204).json({voters:[]});
+            }
+            res.json({voters:votersFetched});
+        }).catch((err) => {
+            console.log(err);
+            return res.status(500).json({msg:"Problem with fetching voters from database"});
+        });
+    }).catch((err) => {
+        console.log(err);
+        return res.status(500).json({msg:"Problem with fetching elections from database"});
+    });
+});
+
+router.get('/:id', (req,res) => {
+    if(!req.query.electionId)
+    {
+        return res.status(400).json({msg:"Query field not included : electionId", input:req.query});
+    }
+    var electionQuery = {};
+    electionQuery._id = ObjectId(req.query.electionId);
+    Election.find(electionQuery).then((elections) => {
+        if(elections.length === 0)
+        {
+            return res.status(400).json({msg:"Invalid election ID", input:req.query});
+        }
+        voterQuery = {};
+        voterQuery._id = ObjectId(req.params.id);
+        Voter.find(voterQuery).then((votersFetched) => {
+            if(votersFetched.length === 0)
+            {
+                return res.status(204).json({voters:[]});
+            }
+            res.json({voters:votersFetched});
+        }).catch((err) => {
+            console.log(err);
+            return res.status(500).json({msg:"Problem with fetching voters from database"});
+        });
+    }).catch((err) => {
+        console.log(err);
+        return res.status(500).json({msg:"Problem with fetching elections from database"});
     });
 });
 
 router.post('/register', (req,res) => {
+    
     if(!req.body.voters)
     {
         return res.status(400).json({msg:"Invalid format.", input:req.body});
     }
-    var voters = Array();
-    for(i=0; i<req.body.voters.length; i+=1)
+    if(!req.query.from)
     {
-        if(!req.body.voters[i].Name)
-        {
-            return res.status(400).json({msg:"Field not included : Name", input:req.body});
-        }
-        if(!req.body.voters[i].Public_Key)
-        {
-            return res.status(400).json({msg:"Field not included : Public Key", input:req.body});
-        }
-        if(!req.body.voters[i].Status)
-        {
-            return res.status(400).json({msg:"Field not included : Public Key", input:req.body});
-        }
-        var voter = {};
-        voter.Name = req.body.voters[i].Name;
-        voter.Public_Key = req.body.voters[i].Public_Key;
-        if(req.body.voters[i].Voting_Location)
-        {
-            voter.Voting_Location = req.body.voters[i].Voting_Location;
-        }
-        if(req.body.voters[i].Status)
-        {
-            voter.Status = req.body.voters[i].Status;
-        }
-        if(req.body.voters[i].Comments)
-        {
-            voter.Comments = req.body.voters[i].Comments;
-        }
-        var voterObj = new Voter(voter);
-        voters.push(voterObj);
+        return res.status(400).json({msg:"Fields to be included : from", query:req.query});
     }
-    Voter.create(voters).then((data)=> {
-        var responseObj = {};
-        responseObj.msg = "Voter(s) inserted successfully";
-        responseObj.input = data;
-        res.status(201).json(responseObj);
-    }).catch((err)=>{
+    if(!req.query.electionId)
+    {
+        return res.status(400).json({msg:"Fields to be included : electionId", query:req.query});
+    }
+    var electionQuery = {};
+    electionQuery._id = ObjectId(req.query.electionId);
+    Election.find(electionQuery).then((elections) => {
+        if(elections.length <= 0)
+        {
+            return res.status(400).json({msg:"Invalid election ID", query:req.query});
+        }
+        BlockchainApp.initBlockchainServer(elections[0].Port);
+        BlockchainApp.web3.eth.getAccounts((err,accounts) => {
+            if(err)
+            {
+                console.log(err);
+                return res.status(500).json({msg:"Problem occurred while trying to get accounts from contract"});
+            }
+            voters = Array();
+            voterPubKeys = Array();
+            for(i=0; i<req.body.voters.length; i+=1)
+            {
+                if(!req.body.voters[i].Name)
+                {
+                    return res.status(400).json({msg:"Field not included : Name", input:req.body});
+                }
+                if(!req.body.voters[i].Public_Key)
+                {
+                    return res.status(400).json({msg:"Field not included : Public Key", input:req.body});
+                }
+                if(!accounts.includes(req.body.voters[i].Public_Key))
+                {
+                    return res.status(400).json({msg:"Invalid Public key given"});
+                }
+                voterPubKeys.push(req.body.voters[i].Public_Key);
+                var voter = {};
+                voter.Name = req.body.voters[i].Name;
+                voter.Public_Key = req.body.voters[i].Public_Key;
+                voter.Election_ID = req.query.electionId;
+                voter.Voted = false;
+                if(req.body.voters[i].Voting_Location)
+                {
+                    voter.Voting_Location = req.body.voters[i].Voting_Location;
+                }
+                if(req.body.voters[i].Comments)
+                {
+                    voter.Comments = req.body.voters[i].Comments;
+                }
+                var voterObj = new Voter(voter);
+                voters.push(voterObj);
+            }
+            var adminQuery = {};
+            adminQuery._id = ObjectId(req.query.from);
+            Admin.find(adminQuery).then((admins) => {
+                if(admins.length <= 0)
+                {
+                    return res.status(400).json({msg:"Invalid from Admin ID", query:req.query});
+                }
+                var fromObj = {};
+                fromObj.from = admins[0].Public_Key;
+                var electionContract = BlockchainApp.getSmartContract();
+                electionContract.deployed().then((instance) => {
+                    instance.registerVoter(voterPubKeys[0],fromObj).then(() => {
+                        Voter.create(voters).then((createdVoters) => {
+                            var successResponseObj = {};
+                            successResponseObj.msg = "Voter(s) inserted successfully";
+                            successResponseObj.data = createdVoters;
+                            return res.status(201).json(successResponseObj);
+                        }).catch((err) => {
+                            console.log(err);
+                            return res.status(500).json({msg:"Problem occurred while registering voter in database"});
+                        });
+                    }).catch((err) => {
+                        console.log(err);
+                        return res.status(500).json({msg:"Problem occurred while registering voter in blockchain"});
+                    });
+                }).catch((err) => {
+                    console.log(err);
+                    return res.status(500).json({msg:"Problem occurred while trying to deploy contract"});
+                });
+            }).catch((err) => {
+                console.log(err);
+                return res.status(500).json({msg:"Problem occurred while fetching admins from database"});
+            });
+        });
+    }).catch((err) => {
         console.log(err);
-        return res.status(500).json({msg:"Internal Server Error"}); 
+        return res.status(500).json({msg:"Problem occurred while fetching elections from database"});
     });
 });
 
