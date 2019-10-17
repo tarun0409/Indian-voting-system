@@ -95,7 +95,7 @@ contract Voting_System
                 break;
             }
         }
-        if(!adminFound)
+        if(!adminFound && superAdmin != address(0))
         {
             addAdmin(superAdmin);
         }
