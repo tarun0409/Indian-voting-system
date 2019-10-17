@@ -168,14 +168,41 @@ router.post('/register', (req,res) => {
 });
 
 router.put('/:id', (req,res) => {
-    queryObj = {};
-    queryObj._id = ObjectId(req.params.id);
-    Voter.updateOne(queryObj,req.body, (err) => {
-        if(err)
+    if(!req.query.electionId)
+    {
+        return res.status(400).json({msg:"Fields to be included: electionId"});
+    }
+    electionQuery = {};
+    electionQuery._id = ObjectId(req.query.electionId);
+    Election.find(electionQuery).then((elections) => {
+        if(elections.length <= 0)
         {
-            return res.status(500).json({msg:"Internal Server Error"});
+            return res.status(400).json({msg:"Invalid electionId"});
         }
-        return res.status(200).json({"message":"Updated successfully"});
+        queryObj = {};
+        queryObj._id = ObjectId(req.params.id);
+        if(req.body.Public_Key)
+        {
+            return res.status(400).json({msg:"Public Key of Voter cannot be changed. You may try to delete the voter and insert again"});
+        }
+        if(req.body.Election_ID)
+        {
+            return res.status(400).json({msg:"Election ID of voter cannot be changed"});
+        }
+        if("Voted" in req.body)
+        {
+            return res.status(400).json({msg:"Cannot update Voted field with this API."});
+        }
+        Voter.updateOne(queryObj,req.body, (err) => {
+            if(err)
+            {
+                return res.status(500).json({msg:"Some problem occurred while updating admin(s)"});
+            }
+            return res.status(200).json({msg:"Voter updated successfully", data:req.body});
+        });
+    }).catch((err) => {
+        console.log(err);
+        return res.status(500).json({msg:"Some problem occurred while fetching elections from database"}); 
     });
 });
 
