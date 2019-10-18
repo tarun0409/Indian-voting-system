@@ -48,6 +48,7 @@ router.post('/', (req,res) => {
         var election = {};
         election.Name = req.body.elections[i].Name;
         election.Port = req.body.elections[i].Port;
+        election.Votes_Counted = false;
         var electionObj = new Election(election);
         elections.push(electionObj);
     }
@@ -73,6 +74,10 @@ router.post('/:id/count_votes', (req,res) => {
         if(elections.length <= 0)
         {
             return res.status(400).json({msg:"Invalid election ID"});
+        }
+        if(elections[i].Votes_Counted)
+        {
+            return res.status(400).json({msg:"Votes have already been counted"});
         }
         var adminQuery = {};
         adminQuery._id = ObjectId(req.query.from);
@@ -106,7 +111,15 @@ router.post('/:id/count_votes', (req,res) => {
                                         console.log("Vote count updated for "+String(candidate._id));
                                         if(index === candidates.length-1)
                                         {
-                                            return res.status(200).json({msg:"Vote counting completed"});
+                                            electionObj = {};
+                                            electionObj.Votes_Counted = true;
+                                            Election.updateOne(electionQuery, electionObj, (err) => {
+                                                if(err)
+                                                {
+                                                    return res.status(500).json({msg:"Problem occurred when updating vote count status in database"});
+                                                }
+                                                return res.status(200).json({msg:"Vote counting completed"});
+                                            });
                                         }
                                     });
                                 }).catch((err) => {
