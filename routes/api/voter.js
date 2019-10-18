@@ -191,6 +191,10 @@ router.post('/:id/vote/:candidateId',(req, res) => {
             {
                 return res.status(400).json({msg:"Invalid voter ID"});
             }
+            if(voters[0].Voted)
+            {
+                return res.status(400).json({msg:"Voter has already voted."});
+            }
             var fromObj = {};
             fromObj.from = voters[0].Public_Key;
             var candidateQuery = {};
@@ -227,6 +231,51 @@ router.post('/:id/vote/:candidateId',(req, res) => {
             }).catch((err) => {
                     console.log(err);
                     return res.status(500).json({msg:"Some problem occurred while fetching candidates from database"});
+            });
+        }).catch((err) => {
+            console.log(err);
+            return res.status(500).json({msg:"Some problem occurred while fetching voters from database"});
+        });
+    }).catch((err) => {
+        console.log(err);
+        return res.status(500).json({msg:"Some problem occurred while fetching elections from database"});
+    });
+});
+
+router.post('/:id/nonce/reveal', (req, res) => {
+    if(!req.query.electionId)
+    {
+        return res.status(400).json({msg:"Query fields to be included: electionId"});
+    }
+    if(!req.body.nonce)
+    {
+        return res.status(400).json({msg:"Fields to be included: nonce"});
+    }
+    electionQuery = {};
+    electionQuery._id = ObjectId(req.query.electionId);
+    Election.find(electionQuery).then((elections) => {
+        if(elections.length <= 0)
+        {
+            return res.status(400).json({msg:"Invalid electionId"});
+        }
+        var voterQuery = {};
+        voterQuery._id = ObjectId(req.params.id);
+        Voter.find(voterQuery).then((voters) => {
+            if(voters.length <= 0)
+            {
+                return res.status(400).json({msg:"Invalid voter ID"});
+            }
+            var nonces = elections[0].Nonces;
+            BlockchainApp.initBlockchainServer(elections[0].Port);
+            nonces.push(BlockchainApp.web3.utils.soliditySha3(req.body.nonce));
+            var electionObj = {};
+            electionObj.Nonces = nonces;
+            Election.updateOne(electionQuery,electionObj, (err) => {
+                if(err)
+                {
+                    return res.status(500).json({msg:"Some problem occurred while updating nonce"});
+                }
+                return res.status(200).json({msg:"Nonce updated successfully"});
             });
         }).catch((err) => {
             console.log(err);

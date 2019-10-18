@@ -9,6 +9,7 @@ var ElectionSchema = new Schema({
     End_Datetime:Number,
     Vote_Count_Start_Datetime:Number,
     Vote_Count_End_Datetime:Number,
+    Nonces:Array,
     Results_Day:Date,
     Winners:Array,
     Complaints:Array

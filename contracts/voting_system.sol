@@ -13,9 +13,11 @@ contract Voting_System
     uint256 private voteCountStartDateTime;
     uint256 private voteCountEndDateTime;
     mapping (address => uint) private candidateToVoteCount;
+    bool voteCountingDone;
 
     constructor () public {
         superAdmin = address(0);
+        voteCountingDone = false;
     }
 
     function addressIsSuperAdmin(address caller) private view returns(bool) {
@@ -260,5 +262,14 @@ contract Voting_System
                 }
             }
         }
+        voteCountingDone = true;
+    }
+
+    function getVoteCountCandidate(address candidate) public view returns (uint) {
+        require(addressIsAdmin(msg.sender) || addressIsSuperAdmin(msg.sender),'Only admins can see vote choices.');
+        require(isVoteCountDay(),'Votes can be counted only on set vote counting day.');
+        require(candidateIsRegistered(candidate),'Candidate should be registered.');
+        require(voteCountingDone, 'Votes have not ben counted yet');
+        return candidateToVoteCount[candidate];
     }
 }
