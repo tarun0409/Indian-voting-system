@@ -3,6 +3,7 @@ const router = express.Router();
 ObjectId = require('mongodb').ObjectID;
 Election = require('../../models/Election.model');
 Admin = require('../../models/Admin.model');
+Candidate = require('../../models/Candidate.model');
 Voter = require('../../models/Voter.model');
 BlockchainApp = require('../../utils/blockchain');
 
@@ -164,6 +165,76 @@ router.post('/register', (req,res) => {
     }).catch((err) => {
         console.log(err);
         return res.status(500).json({msg:"Problem occurred while fetching elections from database"});
+    });
+});
+
+router.post('/:id/vote/:candidateId',(req, res) => {
+    if(!req.query.electionId)
+    {
+        return res.status(400).json({msg:"Query fields to be included: electionId"});
+    }
+    if(!req.body.nonce)
+    {
+        return res.status(400).json({msg:"Fields to be included: nonce"});
+    }
+    electionQuery = {};
+    electionQuery._id = ObjectId(req.query.electionId);
+    Election.find(electionQuery).then((elections) => {
+        if(elections.length <= 0)
+        {
+            return res.status(400).json({msg:"Invalid electionId"});
+        }
+        var voterQuery = {};
+        voterQuery._id = ObjectId(req.params.id);
+        Voter.find(voterQuery).then((voters) => {
+            if(voters.length <= 0)
+            {
+                return res.status(400).json({msg:"Invalid voter ID"});
+            }
+            var fromObj = {};
+            fromObj.from = voters[0].Public_Key;
+            var candidateQuery = {};
+            candidateQuery._id = ObjectId(req.params.candidateId);
+            Candidate.find(candidateQuery).then((candidates) => {
+                if(candidates.length <= 0)
+                {
+                    return res.status(400).json({msg:"Invalid candidate ID"});
+                }
+                var candidatePubKey = candidates[0].Public_Key;
+                BlockchainApp.initBlockchainServer(elections[0].Port);
+                var electionContract = BlockchainApp.getSmartContract();
+                electionContract.deployed().then((instance) => {
+                    var nonceHash = BlockchainApp.web3.utils.soliditySha3(req.body.nonce);
+                    var voteHash = BlockchainApp.web3.utils.soliditySha3(candidatePubKey, nonceHash);
+                    instance.vote(voteHash, fromObj).then(() => {
+                        var voteUpdate = {};
+                        voteUpdate.Voted = true;
+                        Voter.updateOne(voterQuery,voteUpdate, (err) => {
+                            if(err)
+                            {
+                                return res.status(500).json({msg:"Some problem occurred while updating admin(s)"});
+                            }
+                            return res.status(200).json({msg:"Voting status updated successfully"});
+                        });      
+                    }).catch((err) => {
+                        console.log(err);
+                        return res.status(500).json({msg:"Some problem occurred while trying to vote in blockchain"});
+                    });
+                }).catch((err) => {
+                        console.log(err);
+                        return res.status(500).json({msg:"Some problem occurred while deploying smart contract"});
+                });
+            }).catch((err) => {
+                    console.log(err);
+                    return res.status(500).json({msg:"Some problem occurred while fetching candidates from database"});
+            });
+        }).catch((err) => {
+            console.log(err);
+            return res.status(500).json({msg:"Some problem occurred while fetching voters from database"});
+        });
+    }).catch((err) => {
+        console.log(err);
+        return res.status(500).json({msg:"Some problem occurred while fetching elections from database"});
     });
 });
 
