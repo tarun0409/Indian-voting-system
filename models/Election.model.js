@@ -5,8 +5,10 @@ var ElectionSchema = new Schema({
     Name:String,
     Type:String,
     Port:String,
-    Election_Day:Date,
-    Vote_Count_Day:Date,
+    Start_Datetime:Number,
+    End_Datetime:Number,
+    Vote_Count_Start_Datetime:Number,
+    Vote_Count_End_Datetime:Number,
     Results_Day:Date,
     Winners:Array,
     Complaints:Array

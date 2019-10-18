@@ -169,7 +169,6 @@ contract Voting_System
 
     function registerCandidate(address candidate) public {
         require(addressIsAdmin(msg.sender) || addressIsSuperAdmin(msg.sender), 'Only admins can register a candidate.');
-        require(voterIsRegistered(candidate),'Candidate should be registered as a voter to be registered as candidate!');
         candidates.push(candidate);
     }
 
