@@ -276,18 +276,4 @@ router.delete('/:id', (req,res) => {
     });
 });
 
-// router.delete('/:id', (req,res) => {
-//     voterObj = {};
-//     voterObj._id = ObjectId(req.params.id);
-//     Voter.remove(voterObj).then((data) => {
-//         var responseObj = {};
-//         responseObj.msg = "Voter deleted successfully";
-//         responseObj.details = data;
-//         res.status(200).json(responseObj);
-//     }).catch((err) => {
-//         console.log(err);
-//         return res.status(500).json({msg:"Internal Server Error"});
-//     });
-// });
-
 module.exports = router;

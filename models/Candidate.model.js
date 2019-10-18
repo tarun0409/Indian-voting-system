@@ -6,7 +6,6 @@ var CandidateSchema = new Schema({
     Public_Key:String,
     Election_ID:String,
     Party:String,
-    Status:String,
     Total_Votes:Number,
     Proposal:String
 });
