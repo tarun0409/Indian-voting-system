@@ -12,6 +12,9 @@ app.use(express.static(__dirname+'/src'));
 app.get('/', (req,res) => {
     res.sendFile('src/views/index.html', { root: __dirname });
 });
+app.get('/views/admin/create', (req,res) => {
+    res.sendFile('src/views/adminCreate.html', { root: __dirname });
+});
 
 app.use('/elections', require('./routes/api/election'));
 app.use('/admins', require('./routes/api/admin'));
