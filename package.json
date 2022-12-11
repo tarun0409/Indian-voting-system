@@ -22,7 +22,7 @@
   "homepage": "https://github.com/tarun0409/blockchain-voting-application#readme",
   "dependencies": {
     "bcrypt-nodejs": "0.0.3",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "express-handlebars": "^3.1.0",
     "express-session": "^1.17.0",
     "moment": "^2.24.0",
